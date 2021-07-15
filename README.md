@@ -8,3 +8,9 @@ Approaches tested thus far are: SVM, Gaussian Process. TODO Linear Discriminant 
 Contents as of 15/7/2021 
 1. Gaussian Process MATLAB Toolbox Tests on MNIST dataset 
 3. Initial Routine 
+
+
+Acknowledgements 
+1. GP toolkit from the GPML toolbox http://www.gaussianprocess.org/gpml/code/matlab/doc/ 
+2. MNINST data from http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz
+3. Read MNIST script from https://uk.mathworks.com/matlabcentral/fileexchange/27675-read-digits-and-labels-from-mnist-database 
