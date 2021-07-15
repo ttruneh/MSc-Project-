@@ -7,7 +7,7 @@ Approaches tested thus far are: SVM, Gaussian Process. TODO Linear Discriminant 
 \
 Contents as of 15/7/2021 
 1. Gaussian Process MATLAB Toolbox Tests on MNIST dataset 
-3. Initial Routine 
+2. TODO full scripts for routine
 
 
 Acknowledgements 
