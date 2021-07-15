@@ -1,15 +1,12 @@
-%Testing out the binary classifiers SVM and GP function on MNIST dataset 
+%% MNIST classification with a Gaussian Process model and an SVM 
 
-%TODO - use wget/curl for the dataset. for now get mnist dataset 
-
-%%
-
-[A,cURL_out] = system('curl -O http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz')
+% http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz');
 
 %%
-
+%Read MNIST script for matlab
+% https://uk.mathworks.com/matlabcentral/fileexchange/27675-read-digits-and-labels-from-mnist-database
 [imgs, labels] = readMNIST('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', 10000, 0); 
-%%
+%% 
 %Select characters to classify for simplicity use 1 and another digit 
 idx = labels == 1 | labels == 3 ;
 filter_labels = labels(idx) ; filter_imgs = imgs(:,:,idx) ;
@@ -48,7 +45,11 @@ SVM_acc = 100*(1 - sum(predict_y ~= test_y) / n_samples) ;
 
 %Can plot some hard examples... 
 
-%% Feature analysis - which features are important for discrimination? 
+%% Feature analysis - which features are important for discrimination?
+%This isn't the full recursive feature selection routine, just rough
+%illustration 
+
+
 idx_support = find(SVMModel.IsSupportVector);
 support_data = train_x(idx_support ,:);
 %multiply by alpha
@@ -107,7 +108,7 @@ hyp.mean = [] ;
 hyp.cov = [] ;
 hyp.lik = [] ;
 
-%% Run model
+%% Run model 
 [ymu, ys2, fmu, fs2  ,~, post ] = gp(hyp, inf, mean, cov, lik, train_x, train_y, test_x);
 
 %ymu is the predictive mean see p 20 manual 
@@ -181,6 +182,8 @@ end
 title('Variance of predictions with error examples *') 
 
 %% Feature importance 
+%Note the full recursive routine will be implemented for the neuroimaging
+%data
 
 %Approach to feature analysis here will be
 % 1. Identify important training examples - importance denoted by the abs(weight) of the kernel for that sample
@@ -212,9 +215,9 @@ histogram(post.alpha) ;
 idx_max = find(post.alpha == max(post.alpha)) ;
 idx_min = find(post.alpha == min(post.alpha)) ;
 
-%Manually found some small ~0 alphas by inspecting post.alpha
-idx_small1 = 3 ;
-idx_small2 = 1 ;
+%Manually found some small ~0 alphas by inspecting post.alpha 
+idx_small1 = 3 ; %check these each run!
+idx_small2 = 1 ; %check these each run!
 %idx_small3 = 116 ;
 
 original_train = permute(reshape(train_x, length(train_x), 20, 20), [2 3 1]) ;

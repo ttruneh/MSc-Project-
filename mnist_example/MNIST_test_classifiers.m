@@ -1,15 +1,9 @@
-%Testing out the binary classifiers SVM and GP function on MNIST dataset 
+%% MNIST classification with a Gaussian Process model and an SVM 
 
-%TODO - use wget/curl for the dataset. for now get mnist dataset 
+% Data: http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz'
+% Read MNIST script from https://uk.mathworks.com/matlabcentral/fileexchange/27675-read-digits-and-labels-from-mnist-database
 
-%%
-%Get the dataset - maybe quicker to download manually - curl very slow for
-%some reason... 
-%[A,cURL_out] = system('curl -O http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz');
-
-%%
-%Read MNIST script for matlab
-% https://uk.mathworks.com/matlabcentral/fileexchange/27675-read-digits-and-labels-from-mnist-database
+%Load data 
 [imgs, labels] = readMNIST('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', 10000, 0); 
 %% 
 %Select characters to classify for simplicity use 1 and another digit 
