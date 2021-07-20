@@ -1,10 +1,9 @@
 %% MNIST classification with a Gaussian Process model and an SVM 
 
-% http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz');
+% Data: http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz'
+% Read MNIST script from https://uk.mathworks.com/matlabcentral/fileexchange/27675-read-digits-and-labels-from-mnist-database
 
-%%
-%Read MNIST script for matlab
-% https://uk.mathworks.com/matlabcentral/fileexchange/27675-read-digits-and-labels-from-mnist-database
+%Load data 
 [imgs, labels] = readMNIST('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', 10000, 0); 
 %% 
 %Select characters to classify for simplicity use 1 and another digit 
@@ -13,7 +12,7 @@ filter_labels = labels(idx) ; filter_imgs = imgs(:,:,idx) ;
 n_samples = length(filter_labels);
 
 %Now change to +1, -1 for sake of classifier 
-idx_2 = filter_labels == 3 ; filter_labels(idx_2) = -1 ;
+%idx_2 = filter_labels == 2 ; filter_labels(idx_2) = -1 ;
 
 %Check images and labels  are as expected with 1 and -1 labels correct
 %imshow(filter_imgs(:,:,1)) ; filter_labels(1)
@@ -45,16 +44,19 @@ SVM_acc = 100*(1 - sum(predict_y ~= test_y) / n_samples) ;
 
 %Can plot some hard examples... 
 
+error_idx_SVM = find(predict_y ~= test_y); 
+
+
 %% Feature analysis - which features are important for discrimination?
 %This isn't the full recursive feature selection routine, just rough
 %illustration 
-
 
 idx_support = find(SVMModel.IsSupportVector);
 support_data = train_x(idx_support ,:);
 %multiply by alpha
 feature_SVM = SVMModel.Alpha'*support_data;
-imshow(reshape(feature_SVM, 20, 20));
+figure;
+imshow(reshape(feature_SVM, 20, 20)); 
 
 %% 02 Gaussian Process model 
 %See binaryLaplaceGP for more information on this... also p.4 of the GP
@@ -93,7 +95,7 @@ imshow(reshape(feature_SVM, 20, 20));
 %mean of zero as targets +1 -1 ?correct interpretation 
 mean = {@meanZero} ; 
 %Using a linear covariance function for now - no associated hyps
-cov = {@covLIN}; 
+cov = {@covMatern}; 
 % Using Laplace for approximation of the posterior for now (EP slightly
 % better but much slower on this dataset thus far) 
 inf = {@infLaplace};
@@ -251,3 +253,222 @@ extr_alpha = abs(post.alpha) > 0.15;
 extr_features = abs(post.alpha(extr_alpha))'*train_x(extr_alpha,:);
 figure;
 imshow(reshape(extr_features, 20, 20)); 
+
+%% Linear and Quadratic Discriminant Analyses testing examples
+
+
+%% sample found online https://stackoverflow.com/questions/48504297/linear-discriminant-analysis-matlab
+x = [1, 1.5] .* randn(100, 2);
+x(51:end, :) = [1, 2] .* x(51:end, :) + [2, 4];
+y = [ones(50, 1); 2*ones(50, 1)];
+
+mdl = fitcdiscr(x, y, 'DiscrimType', 'linear');
+%% Plotting for LDA 
+
+figure(1)
+gscatter(x(:, 1), x(:, 2), y);
+hold on 
+
+lx = get(gca, 'Xlim');
+
+%Note on plot 
+% Const + Linear * x = 0 in the LDA case 
+%Can calculate the function of the line - one domain as a function of
+%another - NOT y (label) as a function of x - we'e plotting a line through
+%the feature space. Rearrange the equation. 
+
+%So can plot x(2) = -(Const + Linear(1) * x(1)) / Linear(2)
+ly = -(mdl.Coeffs(1, 2).Const + mdl.Coeffs(1, 2).Linear(1) .* lx) / mdl.Coeffs(1, 2).Linear(2);
+plot(lx, ly, '-b', 'DisplayName', 'LDA')
+
+hold off
+
+%% Quadratic Equivalent
+
+x = [1, 1.5] .* randn(100, 2);
+x(51:end, :) = [1, 2] .* x(51:end, :) + [2, 4];
+y = [ones(50, 1); 2*ones(50, 1)];
+
+mdl = fitcdiscr(x, y, 'DiscrimType', 'Quadratic');
+
+k = mdl.Coeffs(1,2).Const;
+l = mdl.Coeffs(1,2).Linear;
+q = mdl.Coeffs(1,2).Quadratic;
+f = sprintf('0 = %g+%g*x+%g*y+%g*x^2+%g*x.*y+%g*y.^2', k, l, q(1,1), q(1,2)+q(2,1), q(2,2));
+
+% https://uk.mathworks.com/help/stats/classify.html 
+%f = @(x,y) K + L(1)*x + L(2)*y + Q(1,1)*x.*x + (Q(1,2)+Q(2,1))*x.*y + Q(2,2)*y.*y;
+figure(1)
+gscatter(x(:, 1), x(:, 2), y);
+hold on 
+
+ezplot(f, [min(x(:,1)), max(x(:,1)), min(x(:,2)), max(x(:,2))])
+
+hold off
+
+%% Linear discrim on MNIST 
+
+mdl = fitcdiscr(train_x, train_y, 'DiscrimType', 'Linear');
+
+lin_disc_acc = 100*(1 - sum(mdl.predict(test_x) ~= test_y) / n_samples) ;
+
+%% Quadratic errors when trying to get working ! 
+
+train_x_tab = array2table(train_x) ;
+
+mdl = fitcdiscr(train_x_tab, train_y, 'DiscrimType', 'Linear');
+
+%Predictor train_x2 has zero variance for class 1. Either exclude this predictor or
+%set 'discrimType' to 'pseudoQuadratic' or 'diagQuadratic'.
+
+%Have tried to transform/alter things but not reaaaly working... 
+%x_transp = train_x'; 
+% mod_x = train_x ;
+% mod_y = train_y;
+% mod_x(2,:) = [] ;
+% mod_y(2) = [] ;
+
+%error_idx_lin = find(mdl.predict(test_x) ~= test_y); 
+
+%Unsure as the variance of the train data seems fine...
+variance = var(train_x, 1, 2) ;
+
+%Issue is that the covariance matrix for class 1 is singular!!!!! 
+check = train_x(find(train_y == 1),:) ;
+
+rank(check) % = 322! but 400 cols thus not able to find an inverse for this
+
+%For quadratic iscriminant we need to invert the cov matrices for each
+%class which isn't possible in this way !! 
+
+%% Testing out PCA on the data 
+
+[coeff, scores, latent] = pca(train_x, "NumComponents", 14) ; 
+
+transform_testx = test_x*coeff;
+% 
+mdl = fitcdiscr(scores, train_y, 'DiscrimType', 'Quadratic') ;
+
+lin_disc_acc = 100*(1 - sum(mdl.predict(trasnform_testx) ~= test_y) / n_samples) ;
+% 
+
+%Degree of regularization impacts
+%performance:%https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6869036/  
+%%
+
+%Plotting model performance as a function of PCA components 
+PCA_comps = 1:20;
+Model_acc = zeros(20, 1);
+
+for i=1:20
+    
+    [coeff, scores, latent] = pca(train_x, "NumComponents", i) ; 
+    transform_testx = test_x*coeff; 
+    
+    mdl = fitcdiscr(scores, train_y, 'DiscrimType', 'Quadratic') ;
+    lin_disc_acc = 100*(1 - sum(mdl.predict(transform_testx) ~= test_y) / n_samples) ;
+    Model_acc(i) = lin_disc_acc;
+    
+end
+
+figure;
+plot(PCA_comps, Model_acc);
+title('Linear Disc. Accuracy as a function of model PCA components');
+
+%% Playing with LDA - can we use this as input to QDA? ?do we need to? 
+
+%Kernelize it to test out... 
+
+XK = train_x*train_x' ;
+
+mdl = fitcdiscr(XK, train_y, 'DiscrimType', 'Linear') ;
+
+testXK = test_x*train_x' ; 
+
+lin_disc_acc = 100*(1 - sum(mdl.predict(testXK) ~= test_y)/n_samples) ;
+
+%% Try the Quadratic Form of this... 
+
+XK = train_x*train_x' ;
+
+mdl = fitcdiscr(XK, train_y, 'DiscrimType', 'Quadratic') ;
+
+testXK = test_x*train_x' ; 
+
+lin_disc_acc = 100*(1 - sum(mdl.predict(testXK) ~= test_y)/n_samples) ;
+
+%% Check Covariance Matrix of the Kernel 
+
+%Check the covariance of the class 1
+check = XK(find(train_y == -1),:) ;
+
+rank(check) % = 322! but 400 cols thus not able to find an inverse for this
+
+%QQQQ- check this.... Why is the rank of the kernel the same as that of the original feature
+%space? 
+
+
+
+%% %Plotting model performance as a function of PCA components with kernelized features
+PCA_comps = 1:20;
+Model_acc = zeros(20, 1);
+
+for i=1:20
+    
+    [coeff, scores, latent] = pca(XK, "NumComponents", i) ; 
+    %kernelised test set 
+    
+    transform_testx = testXK*coeff;
+    
+    mdl = fitcdiscr(scores, train_y, 'DiscrimType', 'linear') ;
+    lin_disc_acc = 100*(1 - sum(mdl.predict(transform_testx) ~= test_y) / n_samples) ;
+    Model_acc(i) = lin_disc_acc;
+    
+end
+
+% plot 
+figure;
+plot(PCA_comps, Model_acc);
+title('Linear Disc. Accuracy as a function of model PCA components');
+
+%% Feature selection/examination 
+
+%Rationale for this approach
+%1. Fitted model weights tell us how important a given feature is in the 
+%discrimination task
+%2. These weights are for the components of the PC space we define
+%3. We can find the importance of each individual for the classification 
+%by projecting the training data into PC space (scores), and weighting that
+%4. Absolutes 
+% we will take the absolute values for model weights as well as the scores (projection into PC space) 
+%as we care about overall effect on discrimination not decision itself
+%5. Weighted sum over feature space to generate a feature map which we then
+%normalize for plotting purposes. 
+
+%If model not run earlier ----------
+%Generate the kernel Matrices 
+XK = train_x*train_x' ;
+testXK = test_x*train_x' ; 
+
+%Learn Principle Components 
+[coeff, scores, latent] = pca(XK, "NumComponents", 4) ; 
+
+%Transform test data 
+transform_testx = testXK*coeff;
+
+%Fit model 
+mdl = fitcdiscr(scores, train_y, 'DiscrimType', 'linear') ;
+lin_disc_acc = 100*(1 - sum(mdl.predict(transform_testx) ~= test_y) / n_samples) ;
+
+%Norm of the weighted trai
+subject_weight = abs(scores)*abs(mdl.Coeffs(1, 2).Linear) ;
+
+features = subject_weight'*train_x ;
+%Normalize for plotting purposes...
+norm_features = mat2gray(features);
+figure;
+imshow(reshape(norm_features, 20, 20));
+
+
+
+
