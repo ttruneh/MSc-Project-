@@ -472,8 +472,12 @@ figure;
 imshow(reshape(norm_features, 20, 20));
 
 %% 
+output = voxel_importance_LD_PCA(XK, train_y, train_x, 4);
 
 
+%% 
 
-
+norm_features = mat2gray(output);
+figure;
+imshow(reshape(norm_features, 20, 20));
 
