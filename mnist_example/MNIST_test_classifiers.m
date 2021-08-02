@@ -7,12 +7,12 @@
 [imgs, labels] = readMNIST('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', 10000, 0); 
 %% 
 %Select characters to classify for simplicity use 1 and another digit 
-idx = labels == 1 | labels == 4 ;
+idx = labels == 1 | labels == 8 ;
 filter_labels = labels(idx) ; filter_imgs = imgs(:,:,idx) ;
 n_samples = length(filter_labels);
 
 %Now change to +1, -1 for sake of classifier 
-%idx_2 = filter_labels == 2 ; filter_labels(idx_2) = -1 ;
+idx_2 = filter_labels == 8 ; filter_labels(idx_2) = -1 ;
 
 %Check images and labels  are as expected with 1 and -1 labels correct
 %imshow(filter_imgs(:,:,1)) ; filter_labels(1)
@@ -45,7 +45,6 @@ SVM_acc = 100*(1 - sum(predict_y ~= test_y) / n_samples) ;
 %Can plot some hard examples... 
 
 error_idx_SVM = find(predict_y ~= test_y); 
-
 
 %% Feature analysis - which features are important for discrimination?
 %This isn't the full recursive feature selection routine, just rough
@@ -95,10 +94,10 @@ imshow(reshape(feature_SVM, 20, 20));
 %mean of zero as targets +1 -1 ?correct interpretation 
 mean = {@meanZero} ; 
 %Using a linear covariance function for now - no associated hyps
-cov = {@covMatern}; 
+cov = {@covLIN}; 
 % Using Laplace for approximation of the posterior for now (EP slightly
 % better but much slower on this dataset thus far) 
-inf = {@infLaplace};
+inf = {@infEP};
 % 'Likelihood function' see page 40 rassmussen, p.20 toolbox guide
 %This is the function we use to generate our prediction from the latent
 %function outputs i.e. map to between 0 and 1 - e.g. sigmoid,
@@ -121,11 +120,20 @@ hyp.lik = [] ;
 % ys2 =  integral{ (y* - ymu)^2  p(y* | x*, D) }dy* 
 GP_acc = 100*(1 - sum(sign(ymu) ~= test_y) / n_samples) ;
 
+%% 
+
+Phi = @(z)0.5+0.5.*erf(z/sqrt(2));
+mu  = 1; % Mean     (eq. 3.60)
+s2  = 3; % Variance (eq. 3.61)
+p_numeric  = mean(Phi(randn(1000000,1)*sqrt(s2) + mu));
+p_analytic = Phi(mu/sqrt(1+s2));
+disp([p_numeric p_analytic]) 
+
 %% Visualise some results 
 figure; 
-subplot(2, 1, 1)
-%histogram of the latent means
-histogram(fmu, 100);
+subplot(2, 1, 1) 
+%histogram of the latent means 
+histogram(fmu, 100); 
 title('Latent means: fmu') 
 
 subplot(2, 1, 2);
@@ -159,10 +167,11 @@ title(sprintf('Classified as %d', sign(ymu(error_idx(2)))))
 subplot(2,2,3)
 imshow(original_shapes(:,:,error_idx(3)));
 title(sprintf('Classified as %d', sign(ymu(error_idx(3))))) 
+
 subplot(2,2,4)
 imshow(original_shapes(:,:,error_idx(4)));
 title(sprintf('Classified as %d', sign(ymu(error_idx(4))))) 
-    
+
 %% Quantitative - what outputs are we getting for each error example? 
 
 %Means of predictions
@@ -214,7 +223,7 @@ histogram(post.alpha) ;
 
 %% Plot the most discriminatory training examples and some non-discriminatory examples
 
-idx_max = find(post.alpha == max(post.alpha)) ;
+idx_max = find(post.alpha == max(post.alpha)) ; 
 idx_min = find(post.alpha == min(post.alpha)) ;
 
 %Manually found some small ~0 alphas by inspecting post.alpha 
@@ -239,7 +248,6 @@ imshow(original_train(:,:,idx_small2));
 title(sprintf('alpha = %d', post.alpha(idx_small2))) ;
 
 %% Show a 'feature map' of the most discriminatory areas 
-
 features = abs(post.alpha)'*train_x ;
 figure;
 imshow(reshape(features, 20, 20));
@@ -349,7 +357,7 @@ transform_testx = test_x*coeff;
 % 
 mdl = fitcdiscr(scores, train_y, 'DiscrimType', 'Quadratic') ;
 
-lin_disc_acc = 100*(1 - sum(mdl.predict(trasnform_testx) ~= test_y) / n_samples) ;
+lin_disc_acc = 100*(1 - sum(mdl.predict(transform_testx) ~= test_y) / n_samples) ;
 % 
 
 %Degree of regularization impacts
@@ -408,7 +416,6 @@ rank(check) % = 322! but 400 cols thus not able to find an inverse for this
 %space? 
 
 
-
 %% %Plotting model performance as a function of PCA components with kernelized features
 PCA_comps = 1:20;
 Model_acc = zeros(20, 1);
@@ -431,6 +438,32 @@ figure;
 plot(PCA_comps, Model_acc);
 title('Linear Disc. Accuracy as a function of model PCA components');
 
+
+%% Same for ICA
+
+%% %Plotting model performance as a function of PCA components with kernelized features
+PCA_comps = 1:20;
+Model_acc = zeros(20, 1);
+
+for i=1:20
+    
+    [coeff, scores, latent] = fastICA(XK, "NumComponents", i) ; 
+    %kernelised test set 
+    
+    transform_testx = testXK*coeff;
+    
+    mdl = fitcdiscr(scores, train_y, 'DiscrimType', 'linear') ;
+    lin_disc_acc = 100*(1 - sum(mdl.predict(transform_testx) ~= test_y) / n_samples) ;
+    Model_acc(i) = lin_disc_acc;
+    
+end
+
+% plot 
+figure;
+plot(PCA_comps, Model_acc);
+title('Linear Disc. Accuracy as a function of model PCA components');
+
+
 %% Feature selection/examination 
 
 %Rationale for this approach
@@ -446,12 +479,12 @@ title('Linear Disc. Accuracy as a function of model PCA components');
 %normalize for plotting purposes. 
 
 %If model not run earlier ----------
-%Generate the kernel Matrices 
-XK = train_x*train_x' ;
+%Generate the kernel matrices 
+XK = train_x*train_x' ;s
 testXK = test_x*train_x' ; 
 
 %Learn Principle Components 
-[coeff, scores, latent] = pca(XK, "NumComponents", 4) ; 
+[coeff, scores, latent] = fastICA(XK, "NumComponents", 4) ; 
 
 %Transform test data 
 transform_testx = testXK*coeff;

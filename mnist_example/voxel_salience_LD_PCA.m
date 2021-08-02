@@ -1,4 +1,4 @@
-function [voxel_importance] = vox_importance_LD_PCA(train_kernel, train_y, train_x, n_PCA_components)
+function [voxel_importance] = vox_salience_LD_PCA(train_kernel, train_y, train_x, n_PCA_components)
 % Computes voxel importance scores (weighted norm in PCA space) for linear discriminant
 %classifier with input of PCA transformed linear kernel data. See end for
 %detail
@@ -9,7 +9,7 @@ function [voxel_importance] = vox_importance_LD_PCA(train_kernel, train_y, train
 %train_x - samples in original feature space 
 %n_PCA_components - dimension of PC space 
 
-%Output
+%Output 
 % Vector of importance scores for each voxel 
 
 %Learn Principle Components 
@@ -22,7 +22,7 @@ mdl = fitcdiscr(x_train_PC, train_y, 'DiscrimType', 'linear') ;
 subject_weight = abs(x_train_PC)*abs(mdl.Coeffs(1, 2).Linear) ;
 
 %Weight the original data by it's importance in classification
-voxel_importance = subject_weight'*train_x ;
+voxel_salience = subject_weight'*train_x ;
 
 end
 
