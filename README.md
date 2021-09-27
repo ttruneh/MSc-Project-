@@ -1,5 +1,4 @@
 # MSc-Project-
-This code is the submission for candidate 15115554
 
 This project is investigating the use of a number of pattern recognition algorithms on neuroimaging datasets \
 Datasets to be used are the Alzheimer's Disease Neuroimaging Initiative Dataset \
